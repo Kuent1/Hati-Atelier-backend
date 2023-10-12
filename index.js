@@ -20,7 +20,9 @@ app.use(express.json());
 
 //Nos différents routers et leurs routes associées:
 const userRouter = require('./routes/user');
+const bookRouter = require('./routes/book');
 app.use('/users', userRouter);
+app.use('/books', bookRouter);
 
 // Si aucune route mais pas d'autres d'erreurs, un code 404 est envoyé
 app.use((req, res) => {

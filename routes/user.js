@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const asyncErrorHandler = require('../tools/asyncErrorHandler');
+const { getToken } = require('../security/jwt');
 const logger = require('../tools/logger');
 const userModel = mongoose.model('User');
 
@@ -22,7 +23,7 @@ router.post('/register', asyncErrorHandler(async (req, res) => {
     });
     //On informe l'utilisateur du status de sa requête, et on lance éventuellement une erreur en cas de problème
     if (user) {
-        logger.notice('User created' + user);
+        logger.warn('User created' + user);
         res.status(201).json(user);
     } else {
         res.status(500).json("Couldn't create new user");
@@ -40,7 +41,7 @@ router.post('/login', asyncErrorHandler(async (req, res) => {
         res.status(401).json('Username or Password does not match');
         logger.warn('Invalid username' + username);
     } else {
-        const validPassword = await bcrypt.compare(password, userpassword); //On effectue ici la vérification du mot de passe fourni avec le hash de la base de données
+        const validPassword = await bcrypt.compare(password, user.password); //On effectue ici la vérification du mot de passe fourni avec le hash de la base de données
         if (!validPassword) {
             //On informe l'utilisateur qu'il s'est trompé d'utilisateur ou de mot de passe, puis on log la tentative
             res.status(401).json('Username or Password does not match');
@@ -48,13 +49,21 @@ router.post('/login', asyncErrorHandler(async (req, res) => {
         } else {
             //Si l'user a donné la bonne combinaison, on lui renvoie son token et on log sa connexion
             const token = getToken(user);
-            res.json({ "token": token });
+            res.status(201).json({ "token": token });
             logger.info(`${username} logged in.`)
         }
     }
 }));
 
-router.
+router.delete('/:id', asyncErrorHandler(async(req, res) => {
+    const {id} = req.params;
 
+    const user = await userModel.findByIdAndDelete(id);
 
-    module.exports = router;
+    if (!user) return res.status(404).json({message: "user not found"})
+
+    res.json({message: "User deleted successfully"});
+    logger.warn(`${id} deleted successfully`);
+}))
+
+module.exports = router;

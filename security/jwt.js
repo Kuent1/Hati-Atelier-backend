@@ -7,7 +7,8 @@ const expiry = process.env.JWT_EXPIRY || "3d";
 let getToken = (user) => {
     return jwt.sign({
         _id: user.id,
-        username: user.username
+        username: user.username,
+        role: user.role
     }, secret, {
         expiresIn: expiry
     });
@@ -19,10 +20,18 @@ let checkToken = (req, res, next) => {
 
     if (token) {
         token = token.replace("Bearer ", ""); //On vient ici enlever le "Bearer " afin de ne conserver uniquement que le token
-    } else {
-        res.status(403).json({
-            message: "No token"
+        jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
+            if (err) {
+                res.status(403).json({ message: "Invalid token" });
+                logger.error("Invalid token");
+                throw new Error("Invalid token")
+            } else {
+                req.decoded = decodedToken;
+                next();
+            }
         })
+    } else {
+        res.status(403).json({ message: "No token" })
         throw new Error("No token provided");
     }
 }
