@@ -22,7 +22,7 @@ router.post('/', checkToken, asyncErrorHandler(async (req, res) => {
                 const book = await bookModel.create(body);
                 res.status(201).json({ "New book": book });
             } catch (err) {
-                res.status(500).json({message: 'Internal server error'});
+                res.status(500).json({ message: 'Internal server error' });
                 logger.error('Error creating book: ' + err);
                 throw new Errror('Server error creating new book: ' + err);
             }
@@ -31,9 +31,6 @@ router.post('/', checkToken, asyncErrorHandler(async (req, res) => {
             res.status(401).json({ message: "You need to be an admin to register a new book." })
             throw new Error('User does not have the admin role')
         }
-    } else { //On notifie l'utilisateur et on log la tentative en cas d'échec d'authentification
-        logger.error('Authentication error on book POST request');
-        throw new Error("Authentication error");
     }
 }));
 
@@ -48,15 +45,61 @@ router.get('/', checkToken, asyncErrorHandler(async (req, res) => {
             //On notifie l'utilisateur en cas d'erreur
             res.status(500).json({ message: "Internal server error" });
             logger.error('Error fetching books: ' + err);
-            throw new Errror('Server error fetching all books: '+ err);
+            throw new Errror('Server error fetching all books: ' + err);
         }
-    } else { //On notifie l'utilisateur et on log la tentative en cas d'échec d'authentification
-        logger.error('Authentication error on book POST request');
-        throw new Error("Authentication error");
     }
 }))
 
+// `GET /:id` permet de récupérer un livre grâce à son id (utilisateur authentifié)
+router.get('/:id', checkToken, asyncErrorHandler(async (req, res) => {
+    //On s'assure que l'utilisateur est connecté avant de lui transmettre les infos
+    if (req.decoded) {
+        const { id } = req.params;
+        try {
+            const book = await bookModel.findById(id);
+            if (!book) { // On notifie l'utilisateur que l'id n'existe pas
+                res.status(404).json({ message: "Couldn't find specified book" });
+                logger.warn(`Couldn't find book ${id}`);
+                throw new Error("Couldn't find book");
+            }
+            res.json({ book });
+        } catch (err) {
+            //On notifie l'utilisateur en cas d'erreur
+            res.status(500).json({ message: "Internal server error" });
+            logger.error('Error fetching book: ' + err);
+            throw new Errror('Server error fetching book: ' + err);
+        }
+    }
+}));
+// `DELETE /:id` permet de supprimer un livre (admin uniquement)
 
+router.delete('/:id', checkToken, asyncErrorHandler(async (req, res) => {
+    //On s'assure que l'utilisateur est connecté et admin
+    if (req.decoded) {
+        const { id } = req.params;
+        if (req.decoded.role === "admin") {
+            try {
+                const book = await bookModel.findByIdAndDelete(id);
+                logger.warn(`Book ${id} deleted`);
+                res.json({message: `Book ${id} deleted`})
+                if (!book) { // On notifie l'utilisateur que l'id n'existe pas
+                    res.status(404).json({ message: "Couldn't find specified book" });
+                    logger.warn(`Couldn't find book ${id}`);
+                    throw new Error("Couldn't find book");
+                }
+            } catch (err) {
+                //On notifie l'utilisateur en cas d'erreur
+                res.status(500).json({ message: "Internal server error" });
+                logger.error('Error deleting book: ' + err);
+                throw new Errror('Server error deleting book: ' + err);
+            }
+        } else { //Sinon, on notifie l'utilisateur et log la tentative
+            logger.error('User does not have the admin role');
+            res.status(401).json({ message: "You need to be an admin to register a new book." })
+            throw new Error('User does not have the admin role')
+        }
+    }
+}));
 
 
 module.exports = router;
